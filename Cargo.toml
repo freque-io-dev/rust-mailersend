@@ -3,7 +3,7 @@ name = "mailersend"
 version = "0.1.0"
 edition = "2018"
 
-author = "meh. <meh@confidential.portal.film>"
+authors = ["meh. <meh@confidential.portal.film>"]
 license = "Apache-2"
 
 [dependencies]
