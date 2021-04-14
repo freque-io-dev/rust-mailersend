@@ -1,5 +1,6 @@
-use reqwest::Client;
 use serde::{Serialize, Deserialize};
+
+pub type MessageId = String;
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Recipient {
@@ -27,7 +28,7 @@ pub struct Substitution {
 }
 
 pub mod send {
-	use serde::{Serialize, Deserialize};
+	use serde::Serialize;
 
 	#[derive(Clone, Serialize, Debug)]
 	#[serde(untagged)]
@@ -38,41 +39,41 @@ pub mod send {
 
 	#[derive(Clone, Serialize, Debug)]
 	pub struct Message {
-		pub from: Recipient,
-		pub to: Vec<Recipient>,
+		pub from: super::Recipient,
+		pub to: Vec<super::Recipient>,
 		#[serde(default)]
-		pub cc: Vec<Recipient>,
+		pub cc: Vec<super::Recipient>,
 		#[serde(default)]
-		pub bcc: Vec<Recipient>,
+		pub bcc: Vec<super::Recipient>,
 		#[serde(default)]
-		pub reply_to: Option<Recipient>,
+		pub reply_to: Option<super::Recipient>,
 		pub subject: String,
-		pub text: String
+		pub text: String,
 		pub html: String,
 		#[serde(default)]
-		pub attachments: Vec<Attachment>,
+		pub attachments: Vec<super::Attachment>,
 		#[serde(default)]
 		pub tags: Vec<String>,
 		#[serde(default)]
-		pub variables: Vec<Variable>,
+		pub variables: Vec<super::Variable>,
 	}
 
 	#[derive(Clone, Serialize, Debug)]
 	pub struct Template {
-		pub to: Vec<Recipient>,
+		pub to: Vec<super::Recipient>,
 		#[serde(default)]
-		pub cc: Vec<Recipient>,
+		pub cc: Vec<super::Recipient>,
 		#[serde(default)]
-		pub bcc: Vec<Recipient>,
+		pub bcc: Vec<super::Recipient>,
 		#[serde(default)]
-		pub reply_to: Option<Recipient>,
+		pub reply_to: Option<super::Recipient>,
 		pub template_id: String,
 		#[serde(default)]
-		pub attachments: Vec<Attachment>,
+		pub attachments: Vec<super::Attachment>,
 		#[serde(default)]
 		pub tags: Vec<String>,
 		#[serde(default)]
-		pub variables: Vec<Variable>,
+		pub variables: Vec<super::Variable>,
 	}
 }
 
@@ -82,22 +83,26 @@ pub struct Api {
 }
 
 impl Api {
-	pub async fn send(&self, request: send::Request) -> crate::Result<()> {
-		let response = self.mailer.post("https://api.mailersend.com/v1/email")
+	pub fn new(mailer: crate::MailerSend) -> Self {
+		Self { mailer }
+	}
+
+	pub async fn send(&self, request: send::Request) -> crate::Result<MessageId> {
+		let response = self.mailer.http.post("https://api.mailersend.com/v1/email")
 			.bearer_auth(&self.mailer.key)
 			.json(&request)
 			.send()
 			.await?
 			.error_for_status()?;
 
-		Ok(())
+		Ok(response.headers()["X-Message-Id"].to_str()?.into())
 	}
 
-	pub async fn message(&self, request: send::Message) -> crate::Result<()> {
+	pub async fn message(&self, request: send::Message) -> crate::Result<MessageId> {
 		self.send(send::Request::Message(request)).await
 	}
 
-	pub async fn template(&self, request: send::Template) -> crate::Result<()> {
+	pub async fn template(&self, request: send::Template) -> crate::Result<MessageId> {
 		self.send(send::Request::Template(request)).await
 	}
 }
