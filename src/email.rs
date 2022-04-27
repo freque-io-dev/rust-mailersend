@@ -1,4 +1,5 @@
 use serde::{Serialize, Deserialize};
+use serde_json as json;
 use crate::error;
 
 pub type MessageId = String;
@@ -96,11 +97,18 @@ impl Api {
 			.await?;
 
 		if response.status().is_success() {
-			Ok(response.headers()["X-Message-Id"].to_str()?.into())
+			return Ok(response.headers()["X-Message-Id"].to_str()?.into());
 		}
-		else {
-			Err(response.json::<error::ValidationError>().await?.into())
+
+    let status = response.status();
+    let body = response.text().await?;
+
+		if let Ok(err) = json::from_str::<error::ValidationError>(&body) {
+			Err(err.into())
 		}
+    else {
+      Err(error::Error::Request { status, body })
+    }
 	}
 
 	pub async fn message(&self, request: Message) -> crate::Result<MessageId> {

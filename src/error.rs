@@ -12,8 +12,14 @@ pub enum Error {
 	#[error("header error")]
 	ReqwestHeader(#[from] reqwest::header::ToStrError),
 
-	#[error("mailersend had an error: {0:?}")]
-	MailerSend(#[from] ValidationError),
+	#[error("validation failed: {0:?}")]
+	Validation(#[from] ValidationError),
+
+	#[error("request failed: {status:?}: {body:?}")]
+  Request {
+    status: reqwest::StatusCode,
+    body: String,
+  }
 }
 
 #[derive(Error, Serialize, Deserialize, Debug)]
