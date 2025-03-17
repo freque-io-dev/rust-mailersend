@@ -97,18 +97,20 @@ impl Api {
 			.await?;
 
 		if response.status().is_success() {
-			return Ok(response.headers()["X-Message-Id"].to_str()?.into());
+			if let Some(x_messgae_id) = response.headers().get("X-Message-Id") {
+				return Ok(x_messgae_id.to_str()?.into());
+			}
+			return Ok("InvalidMessageId".into());
 		}
 
-    let status = response.status();
-    let body = response.text().await?;
+		let status = response.status();
+	    let body = response.text().await?;
 
 		if let Ok(err) = json::from_str::<error::ValidationError>(&body) {
 			Err(err.into())
+		} else {
+			Err(error::Error::Request { status, body })
 		}
-    else {
-      Err(error::Error::Request { status, body })
-    }
 	}
 
 	pub async fn message(&self, request: Message) -> crate::Result<MessageId> {
