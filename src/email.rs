@@ -100,11 +100,15 @@ impl Api {
 			if let Some(x_messgae_id) = response.headers().get("X-Message-Id") {
 				return Ok(x_messgae_id.to_str()?.into());
 			}
+			let body = response.text().await?;
+			println!("mailersend response: {}", body);
 			return Ok("InvalidMessageId".into());
 		}
 
 		let status = response.status();
 	    let body = response.text().await?;
+
+		println!("mailersend error response: {}", body);
 
 		if let Ok(err) = json::from_str::<error::ValidationError>(&body) {
 			Err(err.into())
