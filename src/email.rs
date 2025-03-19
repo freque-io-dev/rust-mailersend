@@ -89,6 +89,23 @@ impl Api {
 		Self { mailer }
 	}
 
+	pub async fn verify_email(&self, email: &str) -> crate::Result<json::Value> {
+		let response = self.mailer.http.post("https://api.mailersend.com/v1/email-verification/verify")
+			.bearer_auth(&self.mailer.key)
+			.json(&json::json!({ "email": email }))
+			.send()
+			.await?;
+
+		if response.status().is_success() {
+			let decoded_response = response.json::<json::Value>().await?;
+			Ok(decoded_response)
+		} else {
+			let status = response.status();
+			let body = response.text().await?;
+			Err(error::Error::Request { status, body })
+		}
+	}
+
 	pub async fn send(&self, request: send::Request) -> crate::Result<MessageId> {
 		let response = self.mailer.http.post("https://api.mailersend.com/v1/email")
 			.bearer_auth(&self.mailer.key)
@@ -100,15 +117,12 @@ impl Api {
 			if let Some(x_messgae_id) = response.headers().get("X-Message-Id") {
 				return Ok(x_messgae_id.to_str()?.into());
 			}
-			let body = response.text().await?;
-			println!("mailersend response: {}", body);
+
 			return Ok("InvalidMessageId".into());
 		}
 
 		let status = response.status();
 	    let body = response.text().await?;
-
-		println!("mailersend error response: {}", body);
 
 		if let Ok(err) = json::from_str::<error::ValidationError>(&body) {
 			Err(err.into())
